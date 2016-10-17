@@ -1,0 +1,11 @@
+#ifndef __CXXLSFITCONFIG_H__
+#define __CXXLSFITCONFIG_H__
+
+// the configured options and settings for Tutorial
+#define cxxlsfit_VERSION_MAJOR @cxxlsfit_VERSION_MAJOR@
+#define cxxlsfit_VERSION_MINOR @cxxlsfit_VERSION_MINOR@
+#define cxxlsfit_VERSION_PATCH @cxxlsfit_VERSION_PATCH@
+
+#define CXXLSFIT_INSTALL_DIR "@CMAKE_INSTALL_PREFIX@"
+
+#endif

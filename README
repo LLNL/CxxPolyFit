@@ -1,0 +1,91 @@
+
+Overview 
+C++ PolyFit is a simple least-squares polynomial fitter (Polynomial Regression) for C++.  It can fit multidimensional polynomials up to 3 dimensions (ie F(x,y,z)), evaluate them, and get derivatives and evaluate those.  It has convenience functions for getting 1st, and second derivatives, including mixed derivatives, but it can be used to get higher derivatives as well just by rerunning the derivers. 
+
+Why was it written?
+When I needed a multi-dimensional Polynomial Fitter for C++, I couldn't find one.  It seems that everyone who has needed one in the past has quickly written their own and kept it to themselves. I'm releasing it as open source so other people won't have to re-write it again.  
+ 
+C++ PolyFit is not a very complex polynomial fitter, and it isn't super efficient either.  I simply don't have time to improve it at this point.  However, maybe you have the same problem as I had, and this will solve your problem and save you a couple of days of work.  
+Feel free to make improvements and submit them back, I will happily adopt them.
+
+How to build it?  
+C++ PolyFit uses Cmake as it's build system.  You will need Cmake >= 2.8 to build it.  
+
+We recommend building in a separate directory than the source.  Say, <builddir>.  
+
+mkdir <builddir>
+cd <builddir>
+ccmake <srcdir>
+hit 'c' to start the configuration
+
+Next Set your build parameters.  Y
+  You can build as a shared library (.so) or static library (.a)
+  If you want the library built with debug flags type "Debug" into CMAKE_BUILD_TYPE
+  You can also set your CMAKE_INSTALL_PREFIX.  This is the directory C++ PolyFit will be installed to if you run make install.
+
+hit 'c' again to complete configuration.
+hit 'g' to generate the build files and exit.
+make all
+make test
+  Six tests will run, they should all pass quickly.'
+
+How to use C++ PolyFit:
+PolyFit makes a Polynomial object, the Polynomial object can be initialized from another Polynomial, or by setting it's coefficients directly, but it's generally constructed from a set of data points.  The fit constructor takes a set of points and fits them with a polynomial of the requested order.  
+
+Polynomial::Polynomial(const vector<double>& xs, const vector<double>& ys, int in_dims, int in_order).
+
+xs is a multidimensional array of the axes of the polynomial points.  ie, if we are fitting a 2D polynomial, xs will be of length numpts * 2.  The points are given as pairs.
+
+ys is a single dimensional array of the values at the xs points.  So it is of length numpts.
+
+in_dims says how many dimensions we are fitting.  In our example above, in_dims is 2.  1, 2, and 3 are the only allowed values.
+
+in_order is the order of the polynomial.  5 is often a good number, as the order goes higher the algorithm seems to become less stable.
+
+Here's some example code using Polyfit.  In this code we fit a 2D polynomial to a 2D grid.  The axes are volume and temperature, and the function we're fitting is "Ft" (Helmholtz Free Energy.) So we have to put together an xs array from the 2 axes, and the Ft grid.  In this case they are in row major order, but that doesn't really matter, as long as the xs and ys points match up, the ordering doesn't matter.  Of course a full grid isn't required either, a scatter plot would also be OK.
+
+void PolyFit::initFromFEF(FreeEnergyFunction* fefunc) {
+
+  const vector<double>& Vgrid = GlobalData::getSingleton()->volumeAxis_ext();
+  const vector<double>& Tgrid = GlobalData::getSingleton()->tempAxis_ext();
+
+  vector<double> xs;     //Polynomial takes all the indicies in one big points x dims array.
+  vector<double> FtGrid;
+  xs.resize(Tgrid.size() * Vgrid.size() * 2);
+  FtGrid.resize(Tgrid.size() * Vgrid.size());
+
+#pragma omp parallel for schedule(dynamic, 1)
+  for(size_t tt = 0; tt < Tgrid.size(); ++tt) {
+    for(size_t vv = 0; vv < Vgrid.size(); ++vv) {
+      int xsIdx = 2*(tt*Vgrid.size()+vv);
+      xs[xsIdx] = conditionV(Vgrid[vv]);
+      xs[xsIdx+1] = conditionT(Tgrid[tt]);
+      FtGrid[tt*Vgrid.size() + vv] = fefunc -> exactEval(Vgrid[vv],Tgrid[tt]);
+    }
+  }
+
+  poly = new Polynomial(xs, FtGrid, 2, order);  //Always 2 dimensions
+  std::cerr << poly->termsToString() << std::endl;
+  
+}
+
+//This is an example of evaluating a 2D polynomial at (XX,YY)
+double PolyFit::eval(double XX, double YY) const {
+    vector<double> xs;
+    xs.push_back(conditionV(XX));
+    xs.push_back(conditionT(YY));
+    double res = poly->eval(xs);
+
+    return res;
+}
+
+//This is an example of getting the 1st dimension derivative at (XX,YY)
+double PolyFit::derivX(double XX, double YY) const {
+
+  vector<double> xs;
+  xs.push_back(conditionV(XX));
+  xs.push_back(conditionT(YY));
+  double res = poly->grad1(xs);
+
+  return conditionVDeriv(res);
+}
