@@ -16,6 +16,8 @@ set (PROJECT_LIB_DIR "${PROJECT_BINARY_DIR}/lib}")
 
 set (EXTRA_LD_FLAGS "")
 
+#I don't see any reason to provide the option to turn off testing
+mark_as_advanced(FORCE BUILD_TESTING)
 
 # configure a header file to pass some of the CMake settings
 # to the source code
@@ -188,8 +190,12 @@ endif(BUILD_SHARED)
 #if the aren't already installed  (Or if we're doing a release. Can't expect users to have them.)
 #(Ordering is a little silly to get the link order right)
 
+if(BUILD_SHARED)
+  find_package(LAPACK)
+else(BUILD_SHARED)
+  find_library(LAPACK liblapack.a)
+endif(BUILD_SHARED)
 
-find_package(LAPACK)
 if(LAPACK_FOUND AND NOT CMAKE_BUILD_TYPE MATCHES Release AND NOT MINGW)
   set (POLYFIT_EXTRA_LIBS ${POLYFIT_EXTRA_LIBS} ${LAPACK_LIBRARIES}) 
 else()
@@ -199,7 +205,12 @@ else()
   set (POLYFIT_EXTRA_LIBS ${POLYFIT_EXTRA_LIBS} lapack)
 endif()
 
-find_package(BLAS)
+if(BUILD_SHARED)
+  find_package(BLAS)
+else(BUILD_SHARED)
+  find_library(BLAS libblas.a)
+endif(BUILD_SHARED)
+
 if(BLAS_FOUND AND NOT CMAKE_BUILD_TYPE MATCHES Release AND NOT MINGW) #Build blas for windows and release
   set (POLYFIT_EXTRA_LIBS ${POLYFIT_EXTRA_LIBS} "${BLAS_LIBRARIES}" "gfortran") 
 else()
